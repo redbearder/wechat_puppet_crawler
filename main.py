@@ -22,6 +22,23 @@ Session = sessionmaker(bind=engine)
 
 es = Elasticsearch()
 
+from selenium import webdriver as selenium_webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.keys import Keys
+
+chrome_options = Options()
+# chrome_options.add_argument("--disable-extensions")
+# chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("window-size=1920,1080")
+browserdriver = selenium_webdriver.Chrome(options=chrome_options)
+# browserdriver.maximize_window()
+
+
 desired_caps = {}
 desired_caps['appActivity'] = '.ui.LauncherUI'
 desired_caps['appPackage'] = 'com.tencent.mm'
@@ -84,13 +101,47 @@ def crawler():
         res = requests.get(l)
         content = res.text
 
+        soup = BeautifulSoup(content, 'html.parser')
+        if len(soup.select('iframe')) > 0:
+            browserdriver.get(l.decode())
+            # print(browserdriver.page_source.encode("utf-8"))
+            html = browserdriver.find_element_by_tag_name('html')
+            time.sleep(1)
+            last_scrollY = None
+            scrollHeight = browserdriver.execute_script(
+                'return document.body.scrollHeight;')
+            while True:
+                html.send_keys(Keys.PAGE_DOWN)
+                time.sleep(1)
+                scrollY = browserdriver.execute_script('return window.scrollY')
+                if scrollY == last_scrollY:
+                    break
+                last_scrollY = scrollY
+
+            print("Reached to the bottom of the page")
+            content = browserdriver.page_source
+            content = content.replace('&amp;tp=webp', '')
+            soup = BeautifulSoup(content, 'html.parser')
+            iframes = soup.select('iframe')
+            for iframe in iframes:
+                if iframe.get('data-src'):
+                    iframe.attrs['src'] = f"http:{iframe.attrs['data-src']}"
+            pass
+        else:
+            soup.title.string = soup.select_one(
+            'meta[property="og:title"]').get('content')
+            imglist = soup.select('img')
+            for img_element in imglist:
+                if img_element.get('data-src'):
+                    img_element.attrs['src'] = img_element.attrs['data-src']
+            pass
+
+
         # xpath
         # selector = etree.HTML(content)
         # links = selector.xpath('//h4/a/text()')
-        soup = BeautifulSoup(content, 'html.parser')
         article_title = soup.select_one(
             'meta[property="og:title"]').get('content')
-        soup.title.string = article_title
         article_description = soup.select_one(
             'meta[property="og:description"]').get('content')
         article_author = soup.select_one(
@@ -99,12 +150,6 @@ def crawler():
         article_image = soup.select_one('meta[property="og:image"]').get(
             'content')
         article_account = soup.select_one('.profile_nickname').string
-
-
-        imglist = soup.select('img')
-        for img_element in imglist:
-            if img_element.get('data-src'):
-                img_element.attrs['src'] = img_element.attrs['data-src']
 
         script_list = soup.select('script')
         for script_element in script_list:
@@ -168,13 +213,19 @@ if __name__ == '__main__':
                         time.sleep(3)
                         copybtns = driver.find_elements_by_id(
                             'com.tencent.mm:id/d0')
+                        copybtnidx = 0
                         for btn in copybtns:
                             if btn.text == '复制链接':
                                 btn.click()
                                 time.sleep(1)
                                 r.lpush('link', driver.get_clipboard())
                                 break
+                            copybtnidx += 1
 
+                        if copybtnidx == 0:
+                            backbtn = driver.find_element_by_id(
+                                'com.tencent.mm:id/lc')
+                            backbtn.click()
                         backbtn = driver.find_element_by_id(
                             'com.tencent.mm:id/lc')
                         backbtn.click()
