@@ -52,6 +52,7 @@ desired_caps['connectHardwareKeyboard'] = True
 desired_caps['noReset'] = True
 
 chatlistid = 'com.tencent.mm:id/b9i'
+expandid = 'com.tencent.mm:id/a9j'
 textboxid = 'com.tencent.mm:id/aom'
 sendbtnid = 'com.tencent.mm:id/aot'
 
@@ -195,6 +196,11 @@ if __name__ == '__main__':
                 if chatw.text == '订阅号消息':
                     chatw.click()
                     time.sleep(3)
+                    expand_element_list = driver.find_elements_by_id(
+                        expandid)
+                    for expand_ele in expand_element_list:
+                        expand_ele.click()
+                        time.sleep(1)
                     article_element_list = driver.find_elements_by_id(
                         'com.tencent.mm:id/a9n')
                     if len(article_element_list) == 0:
