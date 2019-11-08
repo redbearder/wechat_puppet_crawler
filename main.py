@@ -124,8 +124,8 @@ def crawler():
             soup = BeautifulSoup(content, 'html.parser')
             iframes = soup.select('iframe')
             for iframe in iframes:
-                if iframe.get('data-src'):
-                    iframe.attrs['src'] = f"http:{iframe.attrs['data-src']}"
+                if iframe.get('src'):
+                    iframe.attrs['src'] = f"https:{iframe.attrs['src']}"
             pass
         else:
             soup.title.string = soup.select_one(
