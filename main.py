@@ -58,8 +58,6 @@ sendbtnid = 'com.tencent.mm:id/aot'
 mp_name_id = 'com.tencent.mm:id/a8p'
 mp_name_list = ['央视新闻']
 
-driver = webdriver.Remote('http://localhost:4723/wd/hub', desired_caps)
-
 last_article_title = None
 
 session = Session()
@@ -185,25 +183,22 @@ def crawler():
 if __name__ == '__main__':
     threading.Thread(target=crawler).start()
 
-    chatwlist = []
-    while len(chatwlist) == 0:
-        chatwlist = driver.find_elements_by_id(chatlistid)
 
-    for chatw in chatwlist:
-        if chatw.text == '订阅号消息':
-            chatw.click()
-            time.sleep(3)
-            while True:
-                try:
+    while True:
+        try:
+            driver = webdriver.Remote('http://localhost:4723/wd/hub', desired_caps)
+            chatwlist = []
+            while len(chatwlist) == 0:
+                chatwlist = driver.find_elements_by_id(chatlistid)
+
+            for chatw in chatwlist:
+                if chatw.text == '订阅号消息':
+                    chatw.click()
+                    time.sleep(3)
                     article_element_list = driver.find_elements_by_id(
                         'com.tencent.mm:id/a9n')
-                    # if not last_article_title and len(
-                    #         article_element_list) > 0 and article_element_list[
-                    #             0].text == last_article_title:
-                    #     time.sleep(10)
-                    #     continue
-                    #     pass
-                    # last_article_title = article_element_list[0].text
+                    if len(article_element_list) == 0:
+                        break
                     for e in article_element_list:
                         e.click()
                         time.sleep(10)
@@ -231,7 +226,9 @@ if __name__ == '__main__':
                         backbtn.click()
                         time.sleep(3)
                         pass
-                except Exception as e:
-                    continue
 
-    print('in loop')
+        except Exception as e:
+            continue
+
+        print('end one loop')
+        time.sleep(60)
