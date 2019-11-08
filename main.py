@@ -22,22 +22,6 @@ Session = sessionmaker(bind=engine)
 
 es = Elasticsearch()
 
-from selenium import webdriver as selenium_webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.keys import Keys
-
-chrome_options = Options()
-# chrome_options.add_argument("--disable-extensions")
-# chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--headless")
-chrome_options.add_argument("window-size=1920,1080")
-browserdriver = selenium_webdriver.Chrome(options=chrome_options)
-# browserdriver.maximize_window()
-
 desired_caps = {}
 desired_caps['appActivity'] = '.ui.LauncherUI'
 desired_caps['appPackage'] = 'com.tencent.mm'
@@ -97,31 +81,16 @@ def crawler():
             Article.articleid == docid).all()
         if len(all_exist_article_list) > 0:
             continue
-        # res = requests.get(l)
-        # content = res.text
-        browserdriver.get(l.decode())
-        # print(browserdriver.page_source.encode("utf-8"))
-        html = browserdriver.find_element_by_tag_name('html')
-        time.sleep(1)
-        last_scrollY = None
-        scrollHeight = browserdriver.execute_script(
-            'return document.body.scrollHeight;')
-        while True:
-            html.send_keys(Keys.PAGE_DOWN)
-            time.sleep(1)
-            scrollY = browserdriver.execute_script('return window.scrollY')
-            if scrollY == last_scrollY:
-                break
-            last_scrollY = scrollY
+        res = requests.get(l)
+        content = res.text
 
-        print("Reached to the bottom of the page")
-        content = browserdriver.page_source
-        content = content.replace('&amp;tp=webp', '')
         # xpath
         # selector = etree.HTML(content)
         # links = selector.xpath('//h4/a/text()')
         soup = BeautifulSoup(content, 'html.parser')
-        article_title = soup.title.string
+        article_title = soup.select_one(
+            'meta[property="og:title"]').get('content')
+        soup.title.string = article_title
         article_description = soup.select_one(
             'meta[property="og:description"]').get('content')
         article_author = soup.select_one(
@@ -130,12 +99,24 @@ def crawler():
         article_image = soup.select_one('meta[property="og:image"]').get(
             'content')
         article_account = soup.select_one('.profile_nickname').string
+
+
+        imglist = soup.select('img')
+        for img_element in imglist:
+            if img_element.get('data-src'):
+                img_element.attrs['src'] = img_element.attrs['data-src']
+
+        script_list = soup.select('script')
+        for script_element in script_list:
+            script_element.decompose()
+
         article_content = soup.prettify()
 
         es.index(index="article",
                  id=docid,
                  body={
                      "title": article_title,
+                     "articleid": docid,
                      "description": article_description,
                      "author": article_author,
                      "url": article_url,
@@ -145,6 +126,7 @@ def crawler():
                  })
 
         new_a = Article(title=article_title,
+                        articleid=docid,
                         url=article_url,
                         image=article_image,
                         account=article_account,
@@ -176,7 +158,7 @@ if __name__ == '__main__':
                     #     time.sleep(10)
                     #     continue
                     #     pass
-                    last_article_title = article_element_list[0].text
+                    # last_article_title = article_element_list[0].text
                     for e in article_element_list:
                         e.click()
                         time.sleep(10)
