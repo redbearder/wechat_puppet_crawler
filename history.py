@@ -291,4 +291,4 @@ if __name__ == "__main__":
             continue
 
         print("end one loop")
-        time.sleep(60)
+        time.sleep(10)
