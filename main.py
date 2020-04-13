@@ -86,6 +86,25 @@ class Article(Base):
     )
 
 
+class Channel(Base):
+    __tablename__ = "channel"
+
+    channelid = Column(Integer, primary_key=True, autoincrement=True)
+    channelname = Column(String(100), unique=True)
+    channellogo = Column(String(250))
+    channelcover = Column(String(250), nullable=True)
+    channelsubcount = Column(Integer, default=0)
+    createdAt = Column(DateTime,
+                       default=func.now(),
+                       comment="channel create datetime")
+    updatedAt = Column(
+        DateTime,
+        default=func.now(),
+        onupdate=func.now(),
+        comment="channel update datetime",
+    )
+
+
 def crawler():
     while True:
         try:
@@ -186,6 +205,25 @@ def crawler():
                 description=article_description,
             )
             session.add(new_a)
+
+            # get hd_head_img from js
+            channelRes = Channel.query.filter_by(
+                channelname=article_account).first()
+            if not channelRes:
+                channellogo = ''
+                ss = soup.find_all('script')
+                import re
+                for s in ss:
+                    if "hd_head_img" in s.text:
+                        m = re.findall('var hd_head_img = (.*?);', s.text)
+                        channellogo = m[0].split('||')[0]
+                        channellogo = channellogo.replace('"', '')
+                        pass
+                new_c = Channel(
+                    channelname=article_account,
+                    channellogo=channellogo,
+                )
+                session.add(new_c)
             session.commit()
         except:
             continue
